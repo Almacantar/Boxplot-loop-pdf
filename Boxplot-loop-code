@@ -1,0 +1,160 @@
+#libraries to load
+library(BBmisc)
+library(circlize)
+library(corrplot)
+library(data.table)
+library(dynutils)
+library(dplyr)
+library(EnhancedVolcano)
+library(foreign)
+library(ggbeeswarm)
+library(ggcorrplot)
+library(ggfortify)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(ggsignif)
+library(gplots)
+library(gtsummary)
+library(hablar)
+library(Hmisc)
+library(lubridate)
+library(pheatmap)
+library(polyPK)
+library(RColorBrewer)
+library(readr)
+library(sjmisc)  #for move_column
+library(reshape2)
+library(rstatix)
+library(Rtsne)
+library(scales)
+library(tidyverse)
+library(viridis)
+library(wesanderson)
+
+
+#set directory
+setwd("C:/Users/delbarri/Google Drive/Senior tech/COVID-19 project/Data analysis/R serum")
+
+serum <-read_csv("280620_Irene.csv")
+
+serum_filter  <- serum %>%
+  dplyr::filter(!Disease%in%c("LRTI"))%>%
+  dplyr::filter(Retrovirus%in%c("0"))%>%
+  dplyr::filter(is.na(`Admission_sample_N[0]_or_Y[1]`)|`Admission_sample_N[0]_or_Y[1]`%in%c("1"))%>%
+  mutate(group_IP10 = case_when(`AV_IP10`>=500 ~ "High",`AV_IP10`<500 ~ "Low"))       
+
+#check out plotting options
+unique(serum_filter$`OUTCOME_new`)
+unique(serum_filter$`OUTCOME_2`)
+
+#organise nicely
+serum_filter$`OUTCOME_new` <-factor(serum_filter$`OUTCOME_new`, levels=c("Naive","Recovered","Recovered - Suspected","Asymptomatic","<48hrs",">48hrs","intubated","ECMO","ICU","ICU_death","death"))
+serum_filter$`OUTCOME_2` <-factor(serum_filter$`OUTCOME_2`, levels=c("Healthy","Asymptomatic","<48hrs",">48hrs","ICU","death"))
+                               
+
+##add suffix to the columns we want to loop
+colnames(serum_filter)
+
+colnames(serum_filter)[36:72] <- paste(colnames(serum_filter[,c(36:72)]),"toloop",sep = "_")
+
+# when we log, if we have values between 0 and 1 they will become negative. Let's turn them to 1 so when they log, they are 0
+
+serum_filter[, 36:72][serum_filter[, 36:72]<  1] <- 1
+
+
+
+##############################################################################
+
+pdf("20200629 Loop boxplot with healthy log.pdf",  width = 20, height = 9,)
+
+for(your_param in grep("_toloop", colnames(serum_filter), value=TRUE)){   
+  foraxis <-your_param
+  
+  print(your_param)
+  
+  serum_covid_boxplot <- serum_filter%>%
+    filter(!is.na(get(your_param)))  ##delete the NA
+  
+  #plots
+  g <- ggplot(serum_covid_boxplot, aes(x=OUTCOME_2, y= get(your_param)))+ 
+    geom_boxplot()+
+    geom_quasirandom(aes_string(fill="OUTCOME_new"), alpha=0.7, pch=21, size=5, width=0.5)+ 
+    scale_fill_manual(values=c("Naive"="midnightblue",
+                               "Recovered"="#6397c3",
+                               "Recovered - Suspected"="#d7e6fb",
+                               "Asymptomatic"="cornflowerblue",
+                               "<48hrs"="tan",
+                               ">48hrs"="orange",
+                               "intubated"="firebrick",
+                               "ECMO"="#f27086",
+                               "ICU"="red",
+                               "ICU_death"="#796744",
+                               "death"="#2d1510"),
+                      na.value="grey")+
+    theme_classic()+
+    theme(aspect.ratio = 3/2)+
+    theme(axis.text.x=element_text(angle=45,hjust=1,size=22))+   #text in x axis
+    theme(axis.text.y=element_text(size=25))+   #text in y axis
+    theme(axis.title.x=element_text(size=20))+     #label in x axis
+    theme(axis.title.y=element_text(size=20))+     #label in y axis
+    xlab("Group")+
+    ggtitle(your_param)+
+    ylab(foraxis)+
+    scale_y_log10()+
+    facet_wrap(~Discovery_Validation)+
+    theme(strip.text.x = element_text(size = 20))
+    
+  print(g)
+}   ##this is the closing for the for() function in the loop
+
+
+dev.off() 
+
+
+########################
+
+
+pdf("20200629 Loop boxplot with healthy linear.pdf",  width = 20, height = 9,)
+
+for(your_param in grep("_toloop", colnames(serum_filter), value=TRUE)){   
+  foraxis <-your_param
+  
+  print(your_param)
+  
+  serum_covid_boxplot <- serum_filter%>%
+    filter(!is.na(get(your_param)))  ##delete the NA
+  
+  #plots
+  g <- ggplot(serum_covid_boxplot, aes(x=OUTCOME_2, y= get(your_param)))+ 
+    geom_boxplot()+
+    geom_quasirandom(aes_string(fill="OUTCOME_new"), alpha=0.7, pch=21, size=5, width=0.5)+ 
+    scale_fill_manual(values=c("Naive"="midnightblue",
+                               "Recovered"="#6397c3",
+                               "Recovered - Suspected"="#d7e6fb",
+                               "Asymptomatic"="cornflowerblue",
+                               "<48hrs"="tan",
+                               ">48hrs"="orange",
+                               "intubated"="firebrick",
+                               "ECMO"="#f27086",
+                               "ICU"="red",
+                               "ICU_death"="#796744",
+                               "death"="#2d1510"),
+                      na.value="grey")+
+    theme_classic()+
+    theme(aspect.ratio = 3/2)+
+    theme(axis.text.x=element_text(angle=45,hjust=1,size=22))+   #text in x axis
+    theme(axis.text.y=element_text(size=25))+   #text in y axis
+    theme(axis.title.x=element_text(size=20))+     #label in x axis
+    theme(axis.title.y=element_text(size=20))+     #label in y axis
+    xlab("Group")+
+    ggtitle(your_param)+
+    ylab(foraxis)+
+    facet_wrap(~Discovery_Validation)+
+    theme(strip.text.x = element_text(size = 20))
+  
+  print(g)
+}   ##this is the closing for the for() function in the loop
+
+
+dev.off() 
